@@ -1,11 +1,13 @@
-import { Color, Vector4 } from "@oasis-engine/math";
-import { WebGLEngine } from "@oasis-engine/rhi-webgl";
-import { Texture2D, UnlitMaterial } from "@oasis-engine/core";
-import { expect } from "chai";
+import { Texture2D, UnlitMaterial } from "@galacean/engine-core";
+import { Color, Vector4 } from "@galacean/engine-math";
+import { WebGLEngine } from "@galacean/engine-rhi-webgl";
+import { describe, beforeAll, expect, it } from "vitest";
 
 describe("UnlitMaterial", () => {
-  const canvas = document.createElement("canvas");
-  const engine = new WebGLEngine(canvas);
+  let engine: WebGLEngine;
+  beforeAll(async function () {
+    engine = await WebGLEngine.create({ canvas: document.createElement("canvas") });
+  });
 
   it("参数测试", () => {
     const material = new UnlitMaterial(engine);

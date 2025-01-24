@@ -1,6 +1,8 @@
-import { ICollider } from "@oasis-engine/design";
-import { Quaternion, Vector3 } from "oasis-engine";
+import { ICollider } from "@galacean/engine-design";
+import { Quaternion, Vector3 } from "@galacean/engine";
+import { PhysXPhysics } from "./PhysXPhysics";
 import { PhysXColliderShape } from "./shape/PhysXColliderShape";
+import { PhysXPhysicsScene } from "./PhysXPhysicsScene";
 
 /**
  * Abstract class of physical collider.
@@ -11,14 +13,26 @@ export abstract class PhysXCollider implements ICollider {
     rotation: Quaternion;
   } = { translation: null, rotation: null };
 
+  /** @internal  */
+  _scene: PhysXPhysicsScene = null;
   /** @internal */
   _pxActor: any;
+  /** @internal */
+  _shapes = new Array<PhysXColliderShape>();
+
+  protected _physXPhysics: PhysXPhysics;
+
+  constructor(physXPhysics: PhysXPhysics) {
+    this._physXPhysics = physXPhysics;
+  }
 
   /**
    * {@inheritDoc ICollider.addShape }
    */
   addShape(shape: PhysXColliderShape): void {
     this._pxActor.attachShape(shape._pxShape);
+    this._shapes.push(shape);
+    this._scene?._addColliderShape(shape._id);
   }
 
   /**
@@ -26,6 +40,9 @@ export abstract class PhysXCollider implements ICollider {
    */
   removeShape(shape: PhysXColliderShape): void {
     this._pxActor.detachShape(shape._pxShape, true);
+    const shapes = this._shapes;
+    shapes.splice(shapes.indexOf(shape), 1);
+    this._scene?._removeColliderShape(shape._id);
   }
 
   /**

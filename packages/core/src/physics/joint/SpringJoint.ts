@@ -1,8 +1,7 @@
-import { Joint } from "./Joint";
-import { ISpringJoint } from "@oasis-engine/design";
-import { PhysicsManager } from "../PhysicsManager";
+import { ISpringJoint } from "@galacean/engine-design";
 import { Collider } from "../Collider";
-import { Vector3 } from "@oasis-engine/math";
+import { PhysicsScene } from "../PhysicsScene";
+import { Joint } from "./Joint";
 
 /**
  * A joint that maintains an upper or lower bound (or both) on the distance between two points on different objects.
@@ -15,21 +14,6 @@ export class SpringJoint extends Joint {
   private _damping: number = 0;
 
   /**
-   * The swing offset.
-   */
-  get swingOffset(): Vector3 {
-    return this._collider.localPosition;
-  }
-
-  set swingOffset(value: Vector3) {
-    const swingOffset = this._collider.localPosition;
-    if (value !== swingOffset) {
-      swingOffset.copyFrom(value);
-    }
-    (<ISpringJoint>this._nativeJoint).setSwingOffset(value);
-  }
-
-  /**
    * The minimum distance.
    */
   get minDistance(): number {
@@ -37,8 +21,10 @@ export class SpringJoint extends Joint {
   }
 
   set minDistance(value: number) {
-    this._minDistance = value;
-    (<ISpringJoint>this._nativeJoint).setMinDistance(value);
+    if (this._minDistance !== value) {
+      this._minDistance = value;
+      (<ISpringJoint>this._nativeJoint)?.setMinDistance(value);
+    }
   }
 
   /**
@@ -49,8 +35,10 @@ export class SpringJoint extends Joint {
   }
 
   set maxDistance(value: number) {
-    this._maxDistance = value;
-    (<ISpringJoint>this._nativeJoint).setMaxDistance(value);
+    if (this._maxDistance !== value) {
+      this._maxDistance = value;
+      (<ISpringJoint>this._nativeJoint)?.setMaxDistance(value);
+    }
   }
 
   /**
@@ -61,8 +49,10 @@ export class SpringJoint extends Joint {
   }
 
   set tolerance(value: number) {
-    this._tolerance = value;
-    (<ISpringJoint>this._nativeJoint).setTolerance(value);
+    if (this._tolerance !== value) {
+      this._tolerance = value;
+      (<ISpringJoint>this._nativeJoint)?.setTolerance(value);
+    }
   }
 
   /**
@@ -73,8 +63,10 @@ export class SpringJoint extends Joint {
   }
 
   set stiffness(value: number) {
-    this._stiffness = value;
-    (<ISpringJoint>this._nativeJoint).setStiffness(value);
+    if (this._stiffness !== value) {
+      this._stiffness = value;
+      (<ISpringJoint>this._nativeJoint)?.setStiffness(value);
+    }
   }
 
   /**
@@ -85,18 +77,24 @@ export class SpringJoint extends Joint {
   }
 
   set damping(value: number) {
-    this._damping = value;
-    (<ISpringJoint>this._nativeJoint).setDamping(value);
+    if (this._damping !== value) {
+      this._damping = value;
+      (<ISpringJoint>this._nativeJoint)?.setDamping(value);
+    }
   }
 
-  /**
-   * @override
-   * @internal
-   */
-  _onAwake() {
-    const collider = this._collider;
-    collider.localPosition = new Vector3();
-    collider.collider = this.entity.getComponent(Collider);
-    this._nativeJoint = PhysicsManager._nativePhysics.createSpringJoint(collider.collider._nativeCollider);
+  protected _createJoint(): void {
+    const colliderInfo = this._colliderInfo;
+    colliderInfo.collider = this.entity.getComponent(Collider);
+    this._nativeJoint = PhysicsScene._nativePhysics.createSpringJoint(colliderInfo.collider._nativeCollider);
+  }
+
+  protected override _syncNative(): void {
+    super._syncNative();
+    (<ISpringJoint>this._nativeJoint).setMinDistance(this._minDistance);
+    (<ISpringJoint>this._nativeJoint).setMaxDistance(this._maxDistance);
+    (<ISpringJoint>this._nativeJoint).setTolerance(this._tolerance);
+    (<ISpringJoint>this._nativeJoint).setStiffness(this._stiffness);
+    (<ISpringJoint>this._nativeJoint).setDamping(this._damping);
   }
 }

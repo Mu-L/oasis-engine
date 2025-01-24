@@ -1,10 +1,12 @@
-import { WebGLEngine } from "@oasis-engine/rhi-webgl";
-import { Texture2D, PBRMaterial } from "@oasis-engine/core";
-import { expect } from "chai";
+import { WebGLEngine } from "@galacean/engine-rhi-webgl";
+import { Texture2D, PBRMaterial } from "@galacean/engine-core";
+import { describe, beforeAll, expect, it } from "vitest";
 
 describe("PBRMaterial", () => {
-  const canvas = document.createElement("canvas");
-  const engine = new WebGLEngine(canvas);
+  let engine: WebGLEngine;
+  beforeAll(async function () {
+    engine = await WebGLEngine.create({ canvas: document.createElement("canvas") });
+  });
 
   it("pbr 参数测试", () => {
     const material = new PBRMaterial(engine);

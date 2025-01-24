@@ -1,10 +1,16 @@
-import { Quaternion, Vector3 } from "@oasis-engine/math";
+import { Quaternion, Vector3, Vector4 } from "@galacean/engine-math";
 import { IPhysicsMaterial } from "../IPhysicsMaterial";
 
 /**
  * Interface for physics collider shape.
  */
 export interface IColliderShape {
+  /**
+   * Set local rotation.
+   * @param rotation - The local rotation
+   */
+  setRotation(rotation: Vector3): void;
+
   /**
    * Set local position.
    * @param position - The local position
@@ -36,11 +42,12 @@ export interface IColliderShape {
   setIsTrigger(value: boolean): void;
 
   /**
-   * Set scene query or not.
-   * @param value - True for Query, false for not Query
+   * Get the distance between a point and the shape.
+   * @param point - Location in world space you want to find the closest point to
+   * @returns The x, y, and z components of the Vector4 represent the closest point on the shape in world space,
+   * and the w component represents the distance between the point and the shape
    */
-  setIsSceneQuery(value: boolean): void;
-
+  pointDistance(point: Vector3): Vector4;
   /**
    * Decrements the reference count of a shape and releases it if the new reference count is zero.
    */

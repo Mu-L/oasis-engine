@@ -1,5 +1,9 @@
-import { IHardwareRenderer } from "../../renderingHardwareInterface/IHardwareRenderer";
+import { IHardwareRenderer } from "@galacean/engine-design";
+import { RenderStateElementMap } from "../../BasicResources";
+import { ShaderData } from "../ShaderData";
+import { ShaderProperty } from "../ShaderProperty";
 import { CompareFunction } from "../enums/CompareFunction";
+import { RenderStateElementKey } from "../enums/RenderStateElementKey";
 import { StencilOperation } from "../enums/StencilOperation";
 import { RenderState } from "./RenderState";
 
@@ -81,13 +85,83 @@ export class StencilState {
   /**
    * @internal
    */
-  _apply(hardwareRenderer: IHardwareRenderer, lastRenderState: RenderState): void {
-    this._platformApply(hardwareRenderer, lastRenderState.stencilState);
+  _applyShaderDataValue(renderStateDataMap: Record<number, ShaderProperty>, shaderData: ShaderData): void {
+    const enableProperty = renderStateDataMap[RenderStateElementKey.StencilStateEnabled];
+    if (enableProperty !== undefined) {
+      const enabled = shaderData.getFloat(enableProperty);
+      this.enabled = enabled !== undefined ? !!enabled : false;
+    }
+
+    const referenceValueProperty = renderStateDataMap[RenderStateElementKey.StencilStateReferenceValue];
+    if (referenceValueProperty !== undefined) {
+      this.referenceValue = shaderData.getFloat(referenceValueProperty) ?? 0;
+    }
+
+    const maskProperty = renderStateDataMap[RenderStateElementKey.StencilStateMask];
+    if (maskProperty !== undefined) {
+      this.mask = shaderData.getFloat(maskProperty) ?? 0xff;
+    }
+
+    const writeMaskProperty = renderStateDataMap[RenderStateElementKey.StencilStateWriteMask];
+    if (writeMaskProperty !== undefined) {
+      this.writeMask = shaderData.getFloat(writeMaskProperty) ?? 0xff;
+    }
+
+    const compareFunctionFrontProperty = renderStateDataMap[RenderStateElementKey.StencilStateCompareFunctionFront];
+    if (compareFunctionFrontProperty !== undefined) {
+      this.compareFunctionFront = shaderData.getFloat(compareFunctionFrontProperty) ?? CompareFunction.Always;
+    }
+
+    const compareFunctionBackProperty = renderStateDataMap[RenderStateElementKey.StencilStateCompareFunctionBack];
+    if (compareFunctionBackProperty !== undefined) {
+      this.compareFunctionBack = shaderData.getFloat(compareFunctionBackProperty) ?? CompareFunction.Always;
+    }
+
+    const passOperationFrontProperty = renderStateDataMap[RenderStateElementKey.StencilStatePassOperationFront];
+    if (passOperationFrontProperty !== undefined) {
+      this.passOperationFront = shaderData.getFloat(passOperationFrontProperty) ?? StencilOperation.Keep;
+    }
+
+    const passOperationBackProperty = renderStateDataMap[RenderStateElementKey.StencilStatePassOperationBack];
+    if (passOperationBackProperty !== undefined) {
+      this.passOperationBack = shaderData.getFloat(passOperationBackProperty) ?? StencilOperation.Keep;
+    }
+
+    const failOperationFrontProperty = renderStateDataMap[RenderStateElementKey.StencilStateFailOperationFront];
+    if (failOperationFrontProperty !== undefined) {
+      this.failOperationFront = shaderData.getFloat(failOperationFrontProperty) ?? StencilOperation.Keep;
+    }
+
+    const failOperationBackProperty = renderStateDataMap[RenderStateElementKey.StencilStateFailOperationBack];
+    if (failOperationBackProperty !== undefined) {
+      this.failOperationBack = shaderData.getFloat(failOperationBackProperty) ?? StencilOperation.Keep;
+    }
+
+    const zFailOperationFrontProperty = renderStateDataMap[RenderStateElementKey.StencilStateZFailOperationFront];
+    if (zFailOperationFrontProperty !== undefined) {
+      this.zFailOperationFront = shaderData.getFloat(zFailOperationFrontProperty) ?? StencilOperation.Keep;
+    }
+
+    const zFailOperationBackProperty = renderStateDataMap[RenderStateElementKey.StencilStateZFailOperationBack];
+    if (zFailOperationBackProperty !== undefined) {
+      this.zFailOperationBack = shaderData.getFloat(zFailOperationBackProperty) ?? StencilOperation.Keep;
+    }
   }
 
-  private _platformApply(rhi: IHardwareRenderer, lastState: StencilState): void {
+  /**
+   * @internal
+   */
+  _apply(
+    hardwareRenderer: IHardwareRenderer,
+    lastRenderState: RenderState,
+    customStates?: RenderStateElementMap
+  ): void {
+    this._platformApply(hardwareRenderer, lastRenderState.stencilState, customStates);
+  }
+
+  private _platformApply(rhi: IHardwareRenderer, lastState: StencilState, customStates?: RenderStateElementMap): void {
     const gl = <WebGLRenderingContext>rhi.gl;
-    const {
+    let {
       enabled,
       referenceValue,
       mask,
@@ -101,6 +175,31 @@ export class StencilState {
       passOperationBack,
       writeMask
     } = this;
+
+    if (customStates) {
+      const enabledState = customStates[RenderStateElementKey.StencilStateEnabled];
+      enabledState !== undefined && (enabled = <boolean>enabledState);
+      const writeMaskState = customStates[RenderStateElementKey.StencilStateWriteMask];
+      writeMaskState !== undefined && (writeMask = <number>writeMaskState);
+      const referenceValueState = customStates[RenderStateElementKey.StencilStateReferenceValue];
+      referenceValueState !== undefined && (referenceValue = <number>referenceValueState);
+      const compareFunctionFrontState = customStates[RenderStateElementKey.StencilStateCompareFunctionFront];
+      compareFunctionFrontState !== undefined && (compareFunctionFront = <CompareFunction>compareFunctionFrontState);
+      const compareFunctionBackState = customStates[RenderStateElementKey.StencilStateCompareFunctionBack];
+      compareFunctionBackState !== undefined && (compareFunctionBack = <CompareFunction>compareFunctionBackState);
+      const passOperationFrontState = customStates[RenderStateElementKey.StencilStatePassOperationFront];
+      passOperationFrontState !== undefined && (passOperationFront = <StencilOperation>passOperationFrontState);
+      const passOperationBackState = customStates[RenderStateElementKey.StencilStatePassOperationBack];
+      passOperationBackState !== undefined && (passOperationBack = <StencilOperation>passOperationBackState);
+      const failOperationFrontState = customStates[RenderStateElementKey.StencilStateFailOperationFront];
+      failOperationFrontState !== undefined && (failOperationFront = <StencilOperation>failOperationFrontState);
+      const failOperationBackState = customStates[RenderStateElementKey.StencilStateFailOperationBack];
+      failOperationBackState !== undefined && (failOperationBack = <StencilOperation>failOperationBackState);
+      const zFailOperationFrontState = customStates[RenderStateElementKey.StencilStateZFailOperationFront];
+      zFailOperationFrontState !== undefined && (zFailOperationFront = <StencilOperation>zFailOperationFrontState);
+      const zFailOperationBackState = customStates[RenderStateElementKey.StencilStateZFailOperationBack];
+      zFailOperationBackState !== undefined && (zFailOperationBack = <StencilOperation>zFailOperationBackState);
+    }
 
     if (enabled != lastState.enabled) {
       if (enabled) {
@@ -125,12 +224,17 @@ export class StencilState {
       }
 
       if (referenceOrMaskChange || compareFunctionBack !== lastState.compareFunctionBack) {
-        gl.stencilFuncSeparate(gl.BACK, StencilState._getGLCompareFunction(rhi, compareFunctionBack), referenceValue, mask);
-        lastState.compareFunctionBack = this.compareFunctionBack;
+        gl.stencilFuncSeparate(
+          gl.BACK,
+          StencilState._getGLCompareFunction(rhi, compareFunctionBack),
+          referenceValue,
+          mask
+        );
+        lastState.compareFunctionBack = compareFunctionBack;
       }
       if (referenceOrMaskChange) {
-        lastState.referenceValue = this.referenceValue;
-        lastState.mask = this.mask;
+        lastState.referenceValue = referenceValue;
+        lastState.mask = mask;
       }
 
       // apply stencil operation.

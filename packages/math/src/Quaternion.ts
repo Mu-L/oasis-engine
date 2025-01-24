@@ -24,7 +24,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     out._y = left._y + right._y;
     out._z = left._z + right._z;
     out._w = left._w + right._w;
-    out._onValueChanged && out._onValueChanged();
+    out._onValueChanged?.();
   }
 
   /**
@@ -47,7 +47,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     out._y = ay * bw + aw * by + az * bx - ax * bz;
     out._z = az * bw + aw * bz + ax * by - ay * bx;
     out._w = aw * bw - ax * bx - ay * by - az * bz;
-    out._onValueChanged && out._onValueChanged();
+    out._onValueChanged?.();
   }
 
   /**
@@ -60,7 +60,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     out._y = -a._y;
     out._z = -a._z;
     out._w = a._w;
-    out._onValueChanged && out._onValueChanged();
+    out._onValueChanged?.();
   }
 
   /**
@@ -103,7 +103,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     out._y = normalAxis._y * s;
     out._z = normalAxis._z * s;
     out._w = Math.cos(rad);
-    out._onValueChanged && out._onValueChanged();
+    out._onValueChanged?.();
   }
 
   /**
@@ -143,7 +143,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     out._y = sinYaw * cosPitch * cosRoll - cosYaw * sinPitch * sinRoll;
     out._z = cosYawPitch * sinRoll - sinYawPitch * cosRoll;
     out._w = cosYawPitch * cosRoll + sinYawPitch * sinRoll;
-    out._onValueChanged && out._onValueChanged();
+    out._onValueChanged?.();
   }
 
   /**
@@ -198,7 +198,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
       out._z = 0.5 * sqrt;
       out._w = (m12 - m21) * half;
     }
-    out._onValueChanged && out._onValueChanged();
+    out._onValueChanged?.();
   }
 
   /**
@@ -215,7 +215,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
       out._y = -y * invDot;
       out._z = -z * invDot;
       out._w = w * invDot;
-      out._onValueChanged && out._onValueChanged();
+      out._onValueChanged?.();
     }
   }
 
@@ -247,49 +247,30 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
    * Performs a spherical linear blend between two quaternions.
    * @param start - The first quaternion
    * @param end - The second quaternion
-   * @param t - The blend amount where 0 returns start and 1 end
+   * @param amount - The blend amount where 0 returns start and 1 end
    * @param out - The result of spherical linear blending between two quaternions
    */
-  static slerp(start: Quaternion, end: Quaternion, t: number, out: Quaternion): void {
-    const ax = start._x;
-    const ay = start._y;
-    const az = start._z;
-    const aw = start._w;
-    let bx = end._x;
-    let by = end._y;
-    let bz = end._z;
-    let bw = end._w;
+  static slerp(start: Quaternion, end: Quaternion, amount: number, out: Quaternion): void {
+    let opposite: number;
+    let inverse: number;
+    const dot = Quaternion.dot(start, end);
 
-    let scale0: number, scale1: number;
-    // calc cosine
-    let cosom = ax * bx + ay * by + az * bz + aw * bw;
-    // adjust signs (if necessary)
-    if (cosom < 0.0) {
-      cosom = -cosom;
-      bx = -bx;
-      by = -by;
-      bz = -bz;
-      bw = -bw;
-    }
-    // calculate coefficients
-    if (1.0 - cosom > MathUtil.zeroTolerance) {
-      // standard case (slerp)
-      const omega = Math.acos(cosom);
-      const sinom = Math.sin(omega);
-      scale0 = Math.sin((1.0 - t) * omega) / sinom;
-      scale1 = Math.sin(t * omega) / sinom;
+    if (Math.abs(dot) > 1.0 - MathUtil.zeroTolerance) {
+      inverse = 1.0 - amount;
+      opposite = amount * Math.sign(dot);
     } else {
-      // "from" and "to" quaternions are very close
-      //  ... so we can do a linear interpolation
-      scale0 = 1.0 - t;
-      scale1 = t;
+      const acos = Math.acos(Math.abs(dot));
+      const invSin = 1.0 / Math.sin(acos);
+
+      inverse = Math.sin((1.0 - amount) * acos) * invSin;
+      opposite = Math.sin(amount * acos) * invSin * Math.sign(dot);
     }
-    // calculate final values
-    out._x = scale0 * ax + scale1 * bx;
-    out._y = scale0 * ay + scale1 * by;
-    out._z = scale0 * az + scale1 * bz;
-    out._w = scale0 * aw + scale1 * bw;
-    out._onValueChanged && out._onValueChanged();
+
+    out.x = inverse * start.x + opposite * end.x;
+    out.y = inverse * start.y + opposite * end.y;
+    out.z = inverse * start.z + opposite * end.z;
+    out.w = inverse * start.w + opposite * end.w;
+    out._onValueChanged?.();
   }
 
   /**
@@ -306,7 +287,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
       out._y = _y * len;
       out._z = _z * len;
       out._w = _w * len;
-      out._onValueChanged && out._onValueChanged();
+      out._onValueChanged?.();
     }
   }
 
@@ -324,7 +305,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     out._y = 0;
     out._z = 0;
     out._w = c;
-    out._onValueChanged && out._onValueChanged();
+    out._onValueChanged?.();
   }
 
   /**
@@ -341,7 +322,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     out._y = s;
     out._z = 0;
     out._w = c;
-    out._onValueChanged && out._onValueChanged();
+    out._onValueChanged?.();
   }
 
   /**
@@ -358,7 +339,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     out._y = 0;
     out._z = s;
     out._w = c;
-    out._onValueChanged && out._onValueChanged();
+    out._onValueChanged?.();
   }
 
   /**
@@ -377,7 +358,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     out._y = _y * bw + _z * bx;
     out._z = _z * bw - _y * bx;
     out._w = _w * bw - _x * bx;
-    out._onValueChanged && out._onValueChanged();
+    out._onValueChanged?.();
   }
 
   /**
@@ -396,7 +377,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     out._y = _y * bw + _w * by;
     out._z = _z * bw + _x * by;
     out._w = _w * bw - _y * by;
-    out._onValueChanged && out._onValueChanged();
+    out._onValueChanged?.();
   }
 
   /**
@@ -415,7 +396,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     out._y = _y * bw - _x * bz;
     out._z = _z * bw + _w * bz;
     out._w = _w * bw - _z * bz;
-    out._onValueChanged && out._onValueChanged();
+    out._onValueChanged?.();
   }
 
   /**
@@ -429,7 +410,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     out._y = a._y * s;
     out._z = a._z * s;
     out._w = a._w * s;
-    out._onValueChanged && out._onValueChanged();
+    out._onValueChanged?.();
   }
 
   /** @internal */
@@ -452,7 +433,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
 
   public set x(value: number) {
     this._x = value;
-    this._onValueChanged && this._onValueChanged();
+    this._onValueChanged?.();
   }
 
   /**
@@ -464,7 +445,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
 
   public set y(value: number) {
     this._y = value;
-    this._onValueChanged && this._onValueChanged();
+    this._onValueChanged?.();
   }
 
   /**
@@ -476,7 +457,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
 
   public set z(value: number) {
     this._z = value;
-    this._onValueChanged && this._onValueChanged();
+    this._onValueChanged?.();
   }
 
   /**
@@ -498,7 +479,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
 
   public set w(value: number) {
     this._w = value;
-    this._onValueChanged && this._onValueChanged();
+    this._onValueChanged?.();
   }
 
   /**
@@ -528,7 +509,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     this._y = y;
     this._z = z;
     this._w = w;
-    this._onValueChanged && this._onValueChanged();
+    this._onValueChanged?.();
     return this;
   }
 
@@ -540,7 +521,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     this._x *= -1;
     this._y *= -1;
     this._z *= -1;
-    this._onValueChanged && this._onValueChanged();
+    this._onValueChanged?.();
     return this;
   }
 
@@ -578,7 +559,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     this._y = 0;
     this._z = 0;
     this._w = 1;
-    this._onValueChanged && this._onValueChanged();
+    this._onValueChanged?.();
     return this;
   }
 
@@ -620,7 +601,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     const t = out._x;
     out._x = out._y;
     out._y = t;
-    out._onValueChanged && out._onValueChanged();
+    out._onValueChanged?.();
     return out;
   }
 
@@ -631,7 +612,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
    */
   toYawPitchRoll(out: Vector3): Vector3 {
     this._toYawPitchRoll(out);
-    out._onValueChanged && out._onValueChanged();
+    out._onValueChanged?.();
     return out;
   }
 
@@ -745,8 +726,21 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     this._y = source.y;
     this._z = source.z;
     this._w = source.w;
-    this._onValueChanged && this._onValueChanged();
+    this._onValueChanged?.();
     return this;
+  }
+
+  /**
+   * Copy this quaternion to the specified quaternion.
+   * @param target - The specified quaternion
+   * @returns This specified quaternion
+   */
+  copyTo(target: QuaternionLike): QuaternionLike {
+    target.x = this._x;
+    target.y = this._y;
+    target.z = this._z;
+    target.w = this._w;
+    return target;
   }
 
   /**
@@ -760,7 +754,7 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     this._y = array[offset + 1];
     this._z = array[offset + 2];
     this._w = array[offset + 3];
-    this._onValueChanged && this._onValueChanged();
+    this._onValueChanged?.();
     return this;
   }
 
@@ -776,27 +770,41 @@ export class Quaternion implements IClone<Quaternion>, ICopy<QuaternionLike, Qua
     out[outOffset + 3] = this._w;
   }
 
-  private _toYawPitchRoll(out: Vector3): Vector3 {
-    const { _x, _y, _z, _w } = this;
-    const xx = _x * _x;
-    const yy = _y * _y;
-    const zz = _z * _z;
-    const xy = _x * _y;
-    const zw = _z * _w;
-    const zx = _z * _x;
-    const yw = _y * _w;
-    const yz = _y * _z;
-    const xw = _x * _w;
+  /**
+   * Serialize this quaternion to a JSON representation.
+   * @returns A JSON Object representation of this quaternion
+   */
+  toJSON(): QuaternionLike {
+    return {
+      x: this._x,
+      y: this._y,
+      z: this._z,
+      w: this._w
+    };
+  }
 
-    out._y = Math.asin(2.0 * (xw - yz));
-    if (Math.cos(out.y) > MathUtil.zeroTolerance) {
-      out._z = Math.atan2(2.0 * (xy + zw), 1.0 - 2.0 * (zz + xx));
-      out._x = Math.atan2(2.0 * (zx + yw), 1.0 - 2.0 * (yy + xx));
+  private _toYawPitchRoll(out: Vector3): void {
+    // http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToEuler/
+    const { _x: x, _y: y, _z: z, _w: w } = this;
+    const xx = x * x;
+    const yy = y * y;
+    const zz = z * z;
+    const ww = w * w;
+    const unit = xx + yy + zz + ww;
+    const test = 2 * (x * w - y * z);
+    if (test > (1 - MathUtil.zeroTolerance) * unit) {
+      out._x = Math.atan2(2.0 * (w * y - x * z), xx + ww - yy - zz);
+      out._y = Math.PI / 2;
+      out._z = 0;
+    } else if (test < -(1 - MathUtil.zeroTolerance) * unit) {
+      out._x = Math.atan2(2.0 * (w * y - x * z), xx + ww - yy - zz);
+      out._y = -Math.PI / 2;
+      out._z = 0;
     } else {
-      out._z = Math.atan2(-2.0 * (xy - zw), 1.0 - 2.0 * (yy + zz));
-      out._x = 0.0;
+      out._x = Math.atan2(2.0 * (z * x + y * w), zz + ww - yy - xx);
+      out._y = Math.asin(test / unit);
+      out._z = Math.atan2(2.0 * (x * y + z * w), yy + ww - zz - xx);
     }
-    return out;
   }
 }
 

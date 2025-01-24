@@ -1,88 +1,106 @@
+import { IHingeJoint } from "@galacean/engine-design";
+import { MathUtil, Quaternion, Vector3 } from "@galacean/engine";
 import { PhysXCollider } from "../PhysXCollider";
-import { PhysXJoint } from "./PhysXJoint";
-import { IHingeJoint } from "@oasis-engine/design";
 import { PhysXPhysics } from "../PhysXPhysics";
-import { Quaternion, Vector3 } from "oasis-engine";
+import { PhysXJoint } from "./PhysXJoint";
 
 /**
  * A joint which behaves in a similar way to a hinge or axle.
  */
 export class PhysXHingeJoint extends PhysXJoint implements IHingeJoint {
-  private _axisRotationQuaternion = new Quaternion();
-  private _swingOffset = new Vector3();
-  private _velocity = new Vector3();
+  protected static _xAxis = new Vector3(1, 0, 0);
 
-  constructor(collider: PhysXCollider) {
-    super();
+  private _axis: Vector3;
+  private _axisRotationQuaternion = new Quaternion();
+  private _connectedAxisRotationQuaternion = new Quaternion();
+
+  constructor(physXPhysics: PhysXPhysics, collider: PhysXCollider) {
+    super(physXPhysics);
     this._collider = collider;
-    this._pxJoint = PhysXPhysics._pxPhysics.createRevoluteJoint(
-      null,
+    this._pxJoint = physXPhysics._pxPhysics.createRevoluteJoint(
+      collider._pxActor,
       PhysXJoint._defaultVec,
       PhysXJoint._defaultQuat,
-      collider._pxActor,
+      null,
       PhysXJoint._defaultVec,
       PhysXJoint._defaultQuat
     );
+  }
+
+  override setRotation(value: Quaternion): void {
+    const axis = this._axis;
+    this._rotation.copyFrom(value);
+    axis && this.setAxis(axis);
   }
 
   /**
    * {@inheritDoc IHingeJoint.setAxis }
    */
   setAxis(value: Vector3): void {
-    const xAxis = PhysXJoint._xAxis;
+    this._axis = value;
+    const xAxis = PhysXHingeJoint._xAxis;
     const axisRotationQuaternion = this._axisRotationQuaternion;
     xAxis.set(1, 0, 0);
-    value.normalize();
     const angle = Math.acos(Vector3.dot(xAxis, value));
     Vector3.cross(xAxis, value, xAxis);
     Quaternion.rotationAxisAngle(xAxis, angle, axisRotationQuaternion);
+    this._setLocalPose(0, this._anchor, axisRotationQuaternion);
+    const connectedAxisRotationQuaternion = this._connectedAxisRotationQuaternion;
+    Quaternion.multiply(this._rotation, axisRotationQuaternion, connectedAxisRotationQuaternion);
+    this._setLocalPose(1, this._connectedAnchor, connectedAxisRotationQuaternion);
+  }
 
-    this._setLocalPose(0, this._swingOffset, axisRotationQuaternion);
+  override setAnchor(value: Vector3): void {
+    this._setLocalPose(0, value, this._axisRotationQuaternion);
+    this._anchor = value;
   }
 
   /**
-   * {@inheritDoc IHingeJoint.setSwingOffset }
+   * {@inheritDoc IJoint.setConnectedAnchor }
    */
-  setSwingOffset(value: Vector3): void {
-    this._swingOffset.copyFrom(value);
-    this._setLocalPose(1, this._swingOffset, this._axisRotationQuaternion);
+  override setConnectedAnchor(value: Vector3): void {
+    this._setLocalPose(1, value, this._connectedAxisRotationQuaternion);
+    this._connectedAnchor = value;
   }
 
   /**
    * {@inheritDoc IHingeJoint.getAngle }
    */
   getAngle(): number {
-    return this._pxJoint.getAngle();
+    return MathUtil.radianToDegree(this._pxJoint.getAngle());
   }
 
   /**
    * {@inheritDoc IHingeJoint.getVelocity }
    */
-  getVelocity(): Readonly<Vector3> {
-    const velocity = this._velocity;
-    velocity.copyFrom(this._pxJoint.getVelocity());
-    return velocity;
+  getVelocity(): Readonly<number> {
+    return this._pxJoint.getVelocity();
   }
 
   /**
    * {@inheritDoc IHingeJoint.setHardLimitCone }
    */
   setHardLimit(lowerLimit: number, upperLimit: number, contactDist: number): void {
-    this._pxJoint.setHardLimit(lowerLimit, upperLimit, contactDist);
+    this._pxJoint.setHardLimit(MathUtil.degreeToRadian(lowerLimit), MathUtil.degreeToRadian(upperLimit), contactDist);
   }
 
   /**
    * {@inheritDoc IHingeJoint.setHardLimitCone }
    */
   setSoftLimit(lowerLimit: number, upperLimit: number, stiffness: number, damping: number): void {
-    this._pxJoint.setSoftLimit(lowerLimit, upperLimit, stiffness, damping);
+    this._pxJoint.setSoftLimit(
+      MathUtil.degreeToRadian(lowerLimit),
+      MathUtil.degreeToRadian(upperLimit),
+      stiffness,
+      damping
+    );
   }
 
   /**
    * {@inheritDoc IHingeJoint.setDriveVelocity }
    */
-  setDriveVelocity(velocity: number): void {
-    this._pxJoint.setDriveVelocity(velocity);
+  setDriveVelocity(velocity: number, autowake: boolean = true): void {
+    this._pxJoint.setDriveVelocity(velocity, autowake);
   }
 
   /**

@@ -1,24 +1,31 @@
-import { Joint } from "./Joint";
-import { IHingeJoint } from "@oasis-engine/design";
-import { PhysicsManager } from "../PhysicsManager";
-import { HingeJointFlag } from "../enums/HingeJointFlag";
+import { IHingeJoint } from "@galacean/engine-design";
+import { Vector3 } from "@galacean/engine-math";
 import { Collider } from "../Collider";
-import { Vector3 } from "@oasis-engine/math";
-import { JointMotor } from "./JointMotor";
+import { PhysicsScene } from "../PhysicsScene";
+import { HingeJointFlag } from "../enums/HingeJointFlag";
+import { Joint } from "./Joint";
 import { JointLimits } from "./JointLimits";
+import { JointMotor } from "./JointMotor";
+import { deepClone, ignoreClone } from "../../clone/CloneManager";
+import { Entity } from "../../Entity";
 
 /**
  * A joint which behaves in a similar way to a hinge or axle.
  */
 export class HingeJoint extends Joint {
-  private _axis: Vector3 = new Vector3(1, 0, 0);
-  private _hingeFlags: number = 0;
-  private _useSpring: boolean = false;
-  private _jointMonitor: JointMotor;
+  @deepClone
+  private _axis = new Vector3(1, 0, 0);
+  private _hingeFlags = HingeJointFlag.None;
+  private _useSpring = false;
+  @deepClone
+  private _jointMotor: JointMotor;
+  @deepClone
   private _limits: JointLimits;
+  private _angle = 0;
+  private _velocity = 0;
 
   /**
-   * The anchor rotation.
+   * The Direction of the axis around which the hingeJoint.
    */
   get axis(): Vector3 {
     return this._axis;
@@ -29,36 +36,28 @@ export class HingeJoint extends Joint {
     if (value !== axis) {
       axis.copyFrom(value);
     }
-    (<IHingeJoint>this._nativeJoint).setAxis(axis);
-  }
-
-  /**
-   * The swing offset.
-   */
-  get swingOffset(): Vector3 {
-    return this._collider.localPosition;
-  }
-
-  set swingOffset(value: Vector3) {
-    const swingOffset = this._collider.localPosition;
-    if (value !== swingOffset) {
-      swingOffset.copyFrom(value);
-    }
-    (<IHingeJoint>this._nativeJoint).setSwingOffset(swingOffset);
   }
 
   /**
    * The current angle in degrees of the joint relative to its rest position.
    */
   get angle(): number {
-    return (<IHingeJoint>this._nativeJoint).getAngle();
+    const nativeJoint = <IHingeJoint>this._nativeJoint;
+    if (nativeJoint) {
+      this._angle = nativeJoint.getAngle();
+    }
+    return this._angle;
   }
 
   /**
    * The angular velocity of the joint in degrees per second.
    */
-  get velocity(): Readonly<Vector3> {
-    return (<IHingeJoint>this._nativeJoint).getVelocity();
+  get velocity(): Readonly<number> {
+    const nativeJoint = <IHingeJoint>this._nativeJoint;
+    if (nativeJoint) {
+      this._velocity = nativeJoint.getVelocity();
+    }
+    return this._velocity;
   }
 
   /**
@@ -70,9 +69,9 @@ export class HingeJoint extends Joint {
 
   set useLimits(value: boolean) {
     if (value !== this.useLimits) {
-      this._hingeFlags |= HingeJointFlag.LimitEnabled;
+      value ? (this._hingeFlags |= HingeJointFlag.LimitEnabled) : (this._hingeFlags &= ~HingeJointFlag.LimitEnabled);
+      (<IHingeJoint>this._nativeJoint)?.setHingeJointFlag(HingeJointFlag.LimitEnabled, value);
     }
-    (<IHingeJoint>this._nativeJoint).setHingeJointFlag(HingeJointFlag.LimitEnabled, value);
   }
 
   /**
@@ -84,9 +83,9 @@ export class HingeJoint extends Joint {
 
   set useMotor(value: boolean) {
     if (value !== this.useMotor) {
-      this._hingeFlags |= HingeJointFlag.DriveEnabled;
+      value ? (this._hingeFlags |= HingeJointFlag.DriveEnabled) : (this._hingeFlags &= ~HingeJointFlag.DriveEnabled);
+      (<IHingeJoint>this._nativeJoint)?.setHingeJointFlag(HingeJointFlag.DriveEnabled, value);
     }
-    (<IHingeJoint>this._nativeJoint).setHingeJointFlag(HingeJointFlag.DriveEnabled, value);
   }
 
   /**
@@ -97,23 +96,28 @@ export class HingeJoint extends Joint {
   }
 
   set useSpring(value: boolean) {
-    this._useSpring = value;
-    this.limits = this._limits;
+    if (this._useSpring !== value) {
+      this._useSpring = value;
+      this._onLimitsChanged();
+    }
   }
 
   /**
    * The motor will apply a force up to a maximum force to achieve the target velocity in degrees per second.
    */
   get motor(): JointMotor {
-    return this._jointMonitor;
+    return this._jointMotor;
   }
 
   set motor(value: JointMotor) {
-    this._jointMonitor = value;
-    (<IHingeJoint>this._nativeJoint).setDriveVelocity(value.targetVelocity);
-    (<IHingeJoint>this._nativeJoint).setDriveForceLimit(value.forceLimit);
-    (<IHingeJoint>this._nativeJoint).setDriveGearRatio(value.gearRation);
-    (<IHingeJoint>this._nativeJoint).setHingeJointFlag(HingeJointFlag.DriveFreeSpin, value.freeSpin);
+    if (this._jointMotor !== value) {
+      this._jointMotor?._updateFlagManager.removeListener(this._onMotorChanged);
+
+      this._jointMotor = value;
+      value?._updateFlagManager.addListener(this._onMotorChanged);
+
+      this._onMotorChanged();
+    }
   }
 
   /**
@@ -124,22 +128,85 @@ export class HingeJoint extends Joint {
   }
 
   set limits(value: JointLimits) {
-    this._limits = value;
-    if (this.useSpring) {
-      (<IHingeJoint>this._nativeJoint).setSoftLimit(value.min, value.max, value.stiffness, value.damping);
-    } else {
-      (<IHingeJoint>this._nativeJoint).setHardLimit(value.min, value.max, value.contactDistance);
+    if (this._limits !== value) {
+      this._limits?._updateFlagManager.removeListener(this._onLimitsChanged);
+
+      this._limits = value;
+      value?._updateFlagManager.addListener(this._onLimitsChanged);
+
+      this._onLimitsChanged();
     }
   }
 
+  constructor(entity: Entity) {
+    super(entity);
+    this._onMotorChanged = this._onMotorChanged.bind(this);
+    this._onLimitsChanged = this._onLimitsChanged.bind(this);
+    this._onAxisChanged = this._onAxisChanged.bind(this);
+    //@ts-ignore
+    this._axis._onValueChanged = this._onAxisChanged;
+  }
+
   /**
-   * @override
    * @internal
    */
-  _onAwake() {
-    const collider = this._collider;
-    collider.localPosition = new Vector3();
-    collider.collider = this.entity.getComponent(Collider);
-    this._nativeJoint = PhysicsManager._nativePhysics.createHingeJoint(collider.collider._nativeCollider);
+  override _onDisableInScene(): void {
+    const nativeJoint = <IHingeJoint>this._nativeJoint;
+    this._angle = nativeJoint.getAngle();
+    this._velocity = nativeJoint.getVelocity();
+    super._onDisableInScene();
+  }
+
+  protected _createJoint(): void {
+    const colliderInfo = this._colliderInfo;
+    colliderInfo.collider = this.entity.getComponent(Collider);
+    this._nativeJoint = PhysicsScene._nativePhysics.createHingeJoint(colliderInfo.collider._nativeCollider);
+  }
+
+  protected override _syncNative(): void {
+    super._syncNative();
+    const motor = this._jointMotor;
+    (<IHingeJoint>this._nativeJoint).setAxis(this._axis);
+    (<IHingeJoint>this._nativeJoint).setHingeJointFlag(HingeJointFlag.LimitEnabled, this.useLimits);
+    (<IHingeJoint>this._nativeJoint).setHingeJointFlag(HingeJointFlag.DriveEnabled, this.useMotor);
+    if (motor) {
+      (<IHingeJoint>this._nativeJoint).setDriveVelocity(motor.targetVelocity);
+      (<IHingeJoint>this._nativeJoint).setDriveForceLimit(motor.forceLimit);
+      (<IHingeJoint>this._nativeJoint).setDriveGearRatio(motor.gearRatio);
+      (<IHingeJoint>this._nativeJoint).setHingeJointFlag(HingeJointFlag.DriveFreeSpin, motor.freeSpin);
+    }
+  }
+
+  @ignoreClone
+  private _onMotorChanged() {
+    const motor = this._jointMotor;
+    if (this._nativeJoint) {
+      (<IHingeJoint>this._nativeJoint).setDriveVelocity(motor.targetVelocity);
+      (<IHingeJoint>this._nativeJoint).setDriveForceLimit(motor.forceLimit);
+      (<IHingeJoint>this._nativeJoint).setDriveGearRatio(motor.gearRatio);
+      (<IHingeJoint>this._nativeJoint).setHingeJointFlag(HingeJointFlag.DriveFreeSpin, motor.freeSpin);
+    }
+  }
+
+  @ignoreClone
+  private _onLimitsChanged() {
+    const limits = this._limits;
+    if (limits && this._nativeJoint) {
+      if (this.useSpring) {
+        (<IHingeJoint>this._nativeJoint).setSoftLimit(limits.min, limits.max, limits.stiffness, limits.damping);
+      } else {
+        (<IHingeJoint>this._nativeJoint).setHardLimit(limits.min, limits.max, limits.contactDistance);
+      }
+    }
+  }
+
+  @ignoreClone
+  private _onAxisChanged(): void {
+    //@ts-ignore
+    this._axis._onValueChanged = null;
+    this._axis.normalize();
+    (<IHingeJoint>this._nativeJoint)?.setAxis(this._axis);
+    //@ts-ignore
+    this._axis._onValueChanged = this._onAxisChanged;
   }
 }

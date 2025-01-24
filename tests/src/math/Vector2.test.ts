@@ -1,5 +1,5 @@
-import { MathUtil, Vector2 } from "@oasis-engine/math";
-import { expect } from "chai";
+import { MathUtil, Vector2 } from "@galacean/engine-math";
+import { describe, expect, it } from "vitest";
 
 function toString(v: Vector2): string {
   return `vec2(${v.x}, ${v.y})`;
@@ -148,6 +148,13 @@ describe("Vector2 test", () => {
     expect(toString(a)).to.eq(toString(out));
   });
 
+  it("copyTo", () => {
+    const a = new Vector2(3, 4);
+    const out = new Vector2();
+    a.copyTo(out);
+    expect(toString(a)).to.eq(toString(out));
+  });
+
   it("add", () => {
     const a = new Vector2(3, 4);
     const ret = new Vector2(1, 2);
@@ -202,5 +209,10 @@ describe("Vector2 test", () => {
     const a = new Vector2(3, 4);
     expect(toString(a.scale(2))).to.eq(toString(a));
     expect(toString(a)).to.eq("vec2(6, 8)");
+  });
+
+  it("toJSON", () => {
+    const a = new Vector2(3, 4);
+    expect(a.toJSON()).to.deep.eq({ x: 3, y: 4 });
   });
 });

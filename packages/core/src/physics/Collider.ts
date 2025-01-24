@@ -1,25 +1,28 @@
-import { ICollider, IStaticCollider } from "@oasis-engine/design";
+import { ICollider, IStaticCollider } from "@galacean/engine-design";
 import { BoolUpdateFlag } from "../BoolUpdateFlag";
-import { ignoreClone } from "../clone/CloneManager";
 import { Component } from "../Component";
-import { dependentComponents } from "../ComponentsDependencies";
+import { DependentMode, dependentComponents } from "../ComponentsDependencies";
 import { Entity } from "../Entity";
 import { Transform } from "../Transform";
+import { deepClone, ignoreClone } from "../clone/CloneManager";
 import { ColliderShape } from "./shape/ColliderShape";
+import { ICustomClone } from "../clone/ComponentCloner";
 
 /**
  * Base class for all colliders.
- * @decorator `@dependentComponents(Transform)`
+ * @decorator `@dependentComponents(Transform, DependentMode.CheckOnly)`
  */
-@dependentComponents(Transform)
-export class Collider extends Component {
+@dependentComponents(Transform, DependentMode.CheckOnly)
+export class Collider extends Component implements ICustomClone {
   /** @internal */
   @ignoreClone
   _index: number = -1;
   /** @internal */
+  @ignoreClone
   _nativeCollider: ICollider;
-
+  @ignoreClone
   protected _updateFlag: BoolUpdateFlag;
+  @deepClone
   protected _shapes: ColliderShape[] = [];
 
   /**
@@ -34,7 +37,7 @@ export class Collider extends Component {
    */
   constructor(entity: Entity) {
     super(entity);
-    this._updateFlag = this.entity.transform.registerWorldChangeFlag();
+    this._updateFlag = entity.registerWorldChangeFlag();
   }
 
   /**
@@ -47,11 +50,9 @@ export class Collider extends Component {
       if (oldCollider) {
         oldCollider.removeShape(shape);
       }
-
       this._shapes.push(shape);
-      this.engine.physicsManager._addColliderShape(shape);
-      shape._collider = this;
-      this._nativeCollider.addShape(shape._nativeShape);
+      this._addNativeShape(shape);
+      this._handleShapesChanged();
     }
   }
 
@@ -63,9 +64,8 @@ export class Collider extends Component {
     const index = this._shapes.indexOf(shape);
     if (index !== -1) {
       this._shapes.splice(index, 1);
-      this.engine.physicsManager._removeColliderShape(shape);
-      shape._collider = null;
-      this._nativeCollider.removeShape(shape._nativeShape);
+      this._removeNativeShape(shape);
+      this._handleShapesChanged();
     }
   }
 
@@ -75,12 +75,10 @@ export class Collider extends Component {
   clearShapes(): void {
     const shapes = this._shapes;
     for (let i = 0, n = shapes.length; i < n; i++) {
-      const shape = shapes[i];
-      this.engine.physicsManager._removeColliderShape(shape);
-      shape._destroy();
-      this._nativeCollider.removeShape(shape._nativeShape);
+      this._removeNativeShape(shapes[i]);
     }
     shapes.length = 0;
+    this._handleShapesChanged();
   }
 
   /**
@@ -108,27 +106,59 @@ export class Collider extends Component {
   _onLateUpdate(): void {}
 
   /**
-   * @override
    * @internal
    */
-  _onEnable(): void {
-    this.engine.physicsManager._addCollider(this);
+  override _onEnableInScene(): void {
+    this.scene.physics._addCollider(this);
   }
 
   /**
-   * @override
    * @internal
    */
-  _onDisable(): void {
-    this.engine.physicsManager._removeCollider(this);
+  override _onDisableInScene(): void {
+    this.scene.physics._removeCollider(this);
   }
 
   /**
-   * @override
    * @internal
    */
-  _onDestroy(): void {
-    this.clearShapes();
+  _cloneTo(target: Collider): void {
+    target._syncNative();
+  }
+
+  /**
+   * @internal
+   */
+  _handleShapesChanged(): void {}
+
+  protected _syncNative(): void {
+    for (let i = 0, n = this.shapes.length; i < n; i++) {
+      this._addNativeShape(this.shapes[i]);
+    }
+  }
+
+  /**
+   * @internal
+   */
+  protected override _onDestroy(): void {
+    super._onDestroy();
+    const shapes = this._shapes;
+    for (let i = 0, n = shapes.length; i < n; i++) {
+      const shape = shapes[i];
+      this._removeNativeShape(shape);
+      shape._destroy();
+    }
+    shapes.length = 0;
     this._nativeCollider.destroy();
+  }
+
+  protected _addNativeShape(shape: ColliderShape): void {
+    shape._collider = this;
+    this._nativeCollider.addShape(shape._nativeShape);
+  }
+
+  protected _removeNativeShape(shape: ColliderShape): void {
+    shape._collider = null;
+    this._nativeCollider.removeShape(shape._nativeShape);
   }
 }

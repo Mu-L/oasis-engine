@@ -1,11 +1,11 @@
-import { Entity, Script } from "@oasis-engine/core";
-import { WebGLEngine } from "@oasis-engine/rhi-webgl";
-import { expect } from "chai";
+import { Entity, Script } from "@galacean/engine-core";
+import { WebGLEngine } from "@galacean/engine-rhi-webgl";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 class TestComponent extends Script {}
 
-describe("Entity", () => {
-  const engine = new WebGLEngine(document.createElement("canvas"));
+describe("Entity", async () => {
+  const engine = await WebGLEngine.create({ canvas: document.createElement("canvas") });
   const scene = engine.sceneManager.activeScene;
   engine.run();
   beforeEach(() => {
@@ -232,6 +232,11 @@ describe("Entity", () => {
       parent.addChild(child);
       expect(child.parent).eq(parent);
       expect(child.scene).eq(scene);
+
+      const childAno = new Entity(engine, "childAno");
+      childAno.parent = parent;
+      parent.addChild(0, childAno);
+      expect(childAno.siblingIndex).eq(0);
     });
 
     it("removeChild", () => {
@@ -271,6 +276,7 @@ describe("Entity", () => {
       child.parent = parent;
       const child2 = new Entity(engine, "child2");
       child2.parent = parent;
+      expect(parent.findByName("parent")).eq(parent);
       expect(parent.findByName("child")).eq(child);
       expect(parent.findByName("child2")).eq(child2);
     });
@@ -393,6 +399,45 @@ describe("Entity", () => {
       child.parent = parent;
       child.destroy();
       expect(parent.children.length).eq(0);
+    });
+
+    it("children", () => {
+      const entity = new Entity(engine, "entity");
+      entity.createChild("child0");
+      entity.createChild("child1");
+      entity.createChild("child2");
+      entity.createChild("child3");
+      entity.createChild("child4");
+      entity.destroy();
+      expect(entity.children.length).eq(0);
+    });
+
+    it("addChildAfterDestroy", () => {
+      class DestroyScript extends Script {
+        onDisable(): void {}
+        onDestroy(): void {}
+      }
+      DestroyScript.prototype.onDisable = vi.fn(DestroyScript.prototype.onDisable);
+      DestroyScript.prototype.onDestroy = vi.fn(DestroyScript.prototype.onDestroy);
+
+      const root = scene.createRootEntity("root");
+      const entity = root.createChild("entity");
+      const script = entity.addComponent(DestroyScript);
+      entity.destroy();
+      expect(entity.isActive).eq(false);
+      expect(entity.isActiveInHierarchy).eq(false);
+      expect(entity.parent).eq(null);
+      expect(entity.scene).eq(null);
+      expect(script.onDisable).toHaveBeenCalledTimes(1);
+
+      expect(entity.createChild("child0").isActiveInHierarchy).eq(false);
+      root.destroy();
+      expect(root.isActive).eq(false);
+      expect(root.isActiveInHierarchy).eq(false);
+      expect(root.createChild("child1").isActiveInHierarchy).eq(false);
+
+      engine.update();
+      expect(script.onDestroy).toHaveBeenCalledTimes(1);
     });
   });
 });

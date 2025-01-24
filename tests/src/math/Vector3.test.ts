@@ -1,5 +1,5 @@
-import { MathUtil, Vector3, Vector4, Quaternion, Matrix3x3, Matrix } from "@oasis-engine/math";
-import { expect } from "chai";
+import { MathUtil, Vector3, Vector4, Quaternion, Matrix3x3, Matrix } from "@galacean/engine-math";
+import { describe, expect, it } from "vitest";
 
 function toString(v: Vector3): string {
   return `vec3(${v.x}, ${v.y}, ${v.z})`;
@@ -176,6 +176,13 @@ describe("Vector3 test", () => {
     expect(toString(a)).to.eq(toString(out));
   });
 
+  it("copyTo", () => {
+    const a = new Vector3(3, 4, 5);
+    const out = new Vector3();
+    a.copyTo(out);
+    expect(toString(a)).to.eq(toString(out));
+  });
+
   it("add", () => {
     const a = new Vector3(3, 4, 5);
     const ret = new Vector3(1, 2, 4);
@@ -256,5 +263,10 @@ describe("Vector3 test", () => {
     const a = new Vector3(2, 3, 4);
     a.transformByQuat(new Quaternion(2, 3, 4, 5));
     expect(toString(a)).to.eq("vec3(108, 162, 216)");
+  });
+
+  it("toJSON", () => {
+    const a = new Vector3(2, 3, 4);
+    expect(JSON.stringify(a)).to.eq('{"x":2,"y":3,"z":4}');
   });
 });

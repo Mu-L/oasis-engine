@@ -1,15 +1,10 @@
 import { IJoint } from "./IJoint";
-import { Vector3 } from "@oasis-engine/math";
+import { Vector3 } from "@galacean/engine-math";
 
 /**
  * a joint that maintains an upper or lower bound (or both) on the distance between two points on different objects
  */
 export interface ISpringJoint extends IJoint {
-  /**
-   * The swing offset.
-   */
-  setSwingOffset(value: Vector3): void;
-
   /**
    * Set the allowed minimum distance for the joint.
    * @param distance the minimum distance

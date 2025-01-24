@@ -6,43 +6,61 @@ export enum AssetType {
    * Plain text.
    * @remarks Will not be cached based on url in ResourceManager.
    */
-  Text = "text",
+  Text = "Text",
   /**
    * JSON.
    * @remarks Will not be cached based on url in ResourceManager.
    */
-  JSON = "json",
+  JSON = "JSON",
   /**
    * ArrayBuffer.
    * @remarks Will not be cached based on url in ResourceManager.
    */
-  Buffer = "buffer",
+  Buffer = "Buffer",
   /** 2D Texture. */
-  Texture2D = "texture2d",
+  Texture2D = "Texture2D",
   /** Cube Texture. */
-  TextureCube = "texture-cube",
+  TextureCube = "TextureCube",
   /** Material. */
-  Material = "material",
+  Material = "Material",
+  /** Shader. */
+  Shader = "Shader",
   /** Mesh. */
-  Mesh = "mesh",
+  Mesh = "Mesh",
   /** AnimationClip. */
   AnimationClip = "AnimationClip",
   /** AnimatorController. */
   AnimatorController = "AnimatorController",
   /** Prefab.*/
-  Prefab = "prefab",
+  Prefab = "Prefab",
+  /** GLTF.*/
+  GLTF = "GLTF",
   /** Compress Texture. */
-  KTX = "ktx",
+  KTX = "KTX",
   /** Cube Compress Texture. */
-  KTXCube = "ktx-cube",
+  KTXCube = "KTXCube",
+  /** KTX2 Compress Texture */
+  KTX2 = "KTX2",
   /** Sprite. */
-  Sprite = "sprite",
+  Sprite = "Sprite",
+  /** PrimitiveMesh. */
+  PrimitiveMesh = "PrimitiveMesh",
   /** Sprite Atlas. */
-  SpriteAtlas = "sprite-atlas",
-  /** ambient light */
-  Env = "environment",
-  /** scene */
-  Scene = "scene",
-  /** HDR to cube */
-  HDR = "HDR"
+  SpriteAtlas = "SpriteAtlas",
+  /** Ambient light. */
+  Env = "Environment",
+  /** Scene. */
+  Scene = "Scene",
+  /** HDR to cube. */
+  HDR = "HDR",
+  /** Font. */
+  Font = "Font",
+  /** Source Font, include ttf, otf and woff. */
+  SourceFont = "SourceFont",
+  /** AudioClip, include ogg, wav and mp3. */
+  Audio = "Audio",
+  /** Project asset. */
+  Project = "project",
+  /** PhysicsMaterial. */
+  PhysicsMaterial = "PhysicsMaterial"
 }

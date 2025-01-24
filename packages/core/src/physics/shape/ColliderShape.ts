@@ -1,25 +1,40 @@
-import { IColliderShape } from "@oasis-engine/design";
+import { IColliderShape } from "@galacean/engine-design";
 import { PhysicsMaterial } from "../PhysicsMaterial";
-import { Vector3 } from "@oasis-engine/math";
+import { Vector3 } from "@galacean/engine-math";
 import { Collider } from "../Collider";
+import { deepClone, ignoreClone } from "../../clone/CloneManager";
+import { ICustomClone } from "../../clone/ComponentCloner";
+import { Engine } from "../../Engine";
 
 /**
  * Abstract class for collider shapes.
  */
-export abstract class ColliderShape {
+export abstract class ColliderShape implements ICustomClone {
   private static _idGenerator: number = 0;
 
   /** @internal */
+  @ignoreClone
   _collider: Collider;
   /** @internal */
+  @ignoreClone
   _nativeShape: IColliderShape;
 
+  @ignoreClone
   protected _id: number;
-  protected _position: Vector3 = new Vector3();
   protected _material: PhysicsMaterial;
-  protected _isTrigger: boolean = false;
-  protected _isSceneQuery: boolean = true;
-  private _contactOffset: number = 0;
+  private _isTrigger: boolean = false;
+  @deepClone
+  private _rotation: Vector3 = new Vector3();
+  @deepClone
+  private _position: Vector3 = new Vector3();
+  private _contactOffset: number = 0.02;
+
+  /**
+   * @internal
+   * @beta
+   * Whether raycast can select it.
+   */
+  isSceneQuery: boolean = true;
 
   /**
    * Collider owner of this shape.
@@ -36,27 +51,48 @@ export abstract class ColliderShape {
   }
 
   /**
-   * Contact offset for this shape.
+   * Contact offset for this shape, the value must be greater than or equal to 0.
    */
-  get contactOffset() {
+  get contactOffset(): number {
     return this._contactOffset;
   }
 
   set contactOffset(value: number) {
-    this._contactOffset = value;
-    this._nativeShape.setContactOffset(value);
+    value = Math.max(0, value);
+    if (this._contactOffset !== value) {
+      this._contactOffset = value;
+      this._nativeShape.setContactOffset(value);
+    }
   }
 
   /**
-   * Physical material.
+   * Physical material, material can't be null.
    */
   get material(): PhysicsMaterial {
     return this._material;
   }
 
   set material(value: PhysicsMaterial) {
-    this._material = value;
-    this._nativeShape.setMaterial(value._nativeMaterial);
+    if (!value) {
+      throw new Error("The physics material of the shape can't be null.");
+    }
+    if (this._material !== value) {
+      this._material = value;
+      this._nativeShape.setMaterial(value._nativeMaterial);
+    }
+  }
+
+  /**
+   * The local rotation of this ColliderShape, in degrees.
+   */
+  get rotation(): Vector3 {
+    return this._rotation;
+  }
+
+  set rotation(value: Vector3) {
+    if (this._rotation != value) {
+      this._rotation.copyFrom(value);
+    }
   }
 
   /**
@@ -70,7 +106,6 @@ export abstract class ColliderShape {
     if (this._position !== value) {
       this._position.copyFrom(value);
     }
-    this._nativeShape.setPosition(value);
   }
 
   /**
@@ -81,31 +116,85 @@ export abstract class ColliderShape {
   }
 
   set isTrigger(value: boolean) {
-    this._isTrigger = value;
-    this._nativeShape.setIsTrigger(value);
+    if (this._isTrigger !== value) {
+      this._isTrigger = value;
+      this._nativeShape.setIsTrigger(value);
+    }
   }
 
   protected constructor() {
     this._material = new PhysicsMaterial();
     this._id = ColliderShape._idGenerator++;
+
+    this._setRotation = this._setRotation.bind(this);
+    this._setPosition = this._setPosition.bind(this);
+    //@ts-ignore
+    this._rotation._onValueChanged = this._setRotation;
+    //@ts-ignore
+    this._position._onValueChanged = this._setPosition;
+
+    Engine._physicalObjectsMap[this._id] = this;
   }
 
   /**
-   * Set local position of collider shape
-   * @param x - The x component of the vector, default 0
-   * @param y - The y component of the vector, default 0
-   * @param z - The z component of the vector, default 0
+   * Get the distance and the closest point on the shape from a point.
+   * @param point - Location in world space you want to find the closest point to
+   * @param outClosestPoint - The closest point on the shape in world space
+   * @returns The distance between the point and the shape
    */
-  setPosition(x: number, y: number, z: number): void {
-    this._position.set(x, y, z);
-    this._nativeShape.setPosition(this._position);
+  getClosestPoint(point: Vector3, outClosestPoint: Vector3): number {
+    const collider = this._collider;
+    if (collider.enabled === false || collider.entity._isActiveInHierarchy === false) {
+      console.warn("The collider is not active in scene.");
+      return -1;
+    }
+
+    const res = this._nativeShape.pointDistance(point);
+    const distance = res.w;
+    if (distance > 0) {
+      outClosestPoint.set(res.x, res.y, res.z);
+    } else {
+      outClosestPoint.copyFrom(point);
+    }
+
+    return Math.sqrt(distance);
+  }
+
+  /**
+   * @internal
+   */
+  _cloneTo(target: ColliderShape) {
+    target._syncNative();
   }
 
   /**
    * @internal
    */
   _destroy() {
-    this._material._destroy();
     this._nativeShape.destroy();
+    this._nativeShape = null;
+    delete Engine._physicalObjectsMap[this._id];
+  }
+
+  protected _syncNative(): void {
+    this._nativeShape.setPosition(this._position);
+    this._nativeShape.setRotation(this._rotation);
+    this._nativeShape.setContactOffset(this._contactOffset);
+    this._nativeShape.setIsTrigger(this._isTrigger);
+    this._nativeShape.setMaterial(this._material._nativeMaterial);
+
+    this._collider?._handleShapesChanged();
+  }
+
+  @ignoreClone
+  private _setPosition(): void {
+    this._nativeShape.setPosition(this._position);
+    this._collider?._handleShapesChanged();
+  }
+
+  @ignoreClone
+  private _setRotation(): void {
+    this._nativeShape.setRotation(this._rotation);
+    this._collider?._handleShapesChanged();
   }
 }

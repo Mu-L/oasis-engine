@@ -1,5 +1,5 @@
-import { IColliderShape, IPhysicsMaterial } from "@oasis-engine/design";
-import { Matrix, Ray, Vector3 } from "oasis-engine";
+import { MathUtil, Matrix, Quaternion, Ray, Vector3, Vector4 } from "@galacean/engine";
+import { IColliderShape, IPhysicsMaterial } from "@galacean/engine-design";
 import { LiteCollider } from "../LiteCollider";
 import { LiteHitResult } from "../LiteHitResult";
 import { LiteTransform } from "../LiteTransform";
@@ -9,13 +9,22 @@ import { LiteUpdateFlag } from "../LiteUpdateFlag";
  * Abstract class for collider shapes.
  */
 export abstract class LiteColliderShape implements IColliderShape {
+  protected static _tempPos = new Vector3();
+  protected static _tempRot = new Quaternion();
+  protected static _tempScale = new Vector3();
+  protected static _tempPoint = new Vector3();
+  protected static _tempVector4 = new Vector4();
+
   private static _ray = new Ray();
-  private static _tempPoint = new Vector3();
 
   /** @internal */
   _id: number;
   /** @internal */
   _collider: LiteCollider;
+  /** @internal */
+  _position: Vector3 = new Vector3();
+  /** @internal */
+  _worldScale: Vector3 = new Vector3(1, 1, 1);
   /** @internal */
   _transform: LiteTransform = new LiteTransform();
   /** @internal */
@@ -23,22 +32,47 @@ export abstract class LiteColliderShape implements IColliderShape {
   /** @internal */
   _inverseWorldMatFlag: LiteUpdateFlag;
 
+  private _rotation: Vector3 = new Vector3();
+
   protected constructor() {
     this._transform.owner = this;
     this._inverseWorldMatFlag = this._transform.registerWorldChangeFlag();
   }
 
   /**
+   * {@inheritDoc IColliderShape.setRotation }
+   */
+  setRotation(rotation: Vector3): void {
+    const rotationInRadians = this._rotation.set(
+      MathUtil.degreeToRadian(rotation.x),
+      MathUtil.degreeToRadian(rotation.y),
+      MathUtil.degreeToRadian(rotation.z)
+    );
+    Quaternion.rotationEuler(
+      rotationInRadians.x,
+      rotationInRadians.y,
+      rotationInRadians.z,
+      this._transform.rotationQuaternion
+    );
+  }
+
+  /**
    * {@inheritDoc IColliderShape.setPosition }
    */
   setPosition(position: Vector3): void {
-    this._transform.setPosition(position.x, position.y, position.z);
+    if (position !== this._position) {
+      this._position.copyFrom(position);
+    }
+    this._setLocalPose();
   }
 
   /**
    * {@inheritDoc IColliderShape.setWorldScale }
    */
-  abstract setWorldScale(scale: Vector3): void;
+  setWorldScale(scale: Vector3): void {
+    this._worldScale.copyFrom(scale);
+    this._setLocalPose();
+  }
 
   /**
    * {@inheritDoc IColliderShape.setContactOffset }
@@ -69,11 +103,9 @@ export abstract class LiteColliderShape implements IColliderShape {
   }
 
   /**
-   * {@inheritDoc IColliderShape.setIsSceneQuery }
+   * {@inheritDoc IColliderShape.pointDistance }
    */
-  setIsSceneQuery(value: boolean): void {
-    console.log("Physics-lite don't support setIsSceneQuery. Use Physics-PhysX instead!");
-  }
+  abstract pointDistance(point: Vector3): Vector4;
 
   /**
    * {@inheritDoc IColliderShape.destroy }
@@ -124,5 +156,11 @@ export abstract class LiteColliderShape implements IColliderShape {
       this._inverseWorldMatFlag.flag = false;
     }
     return this._invModelMatrix;
+  }
+
+  private _setLocalPose() {
+    const shapePosition = LiteColliderShape._tempPoint;
+    Vector3.multiply(this._position, this._worldScale, shapePosition);
+    this._transform.position = shapePosition;
   }
 }

@@ -1,22 +1,23 @@
-import { IPhysicsMaterial } from "@oasis-engine/design";
-import { PhysicsManager } from "./PhysicsManager";
+import { IPhysicsMaterial } from "@galacean/engine-design";
+import { PhysicsScene } from "./PhysicsScene";
 import { PhysicsMaterialCombineMode } from "./enums/PhysicsMaterialCombineMode";
 
 /**
  * Material class to represent a set of surface properties.
  */
 export class PhysicsMaterial {
-  private _bounciness: number = 0.1;
-  private _dynamicFriction: number = 0.1;
-  private _staticFriction: number = 0.1;
+  private _bounciness = 0;
+  private _dynamicFriction = 0.6;
+  private _staticFriction = 0.6;
   private _bounceCombine: PhysicsMaterialCombineMode = PhysicsMaterialCombineMode.Average;
   private _frictionCombine: PhysicsMaterialCombineMode = PhysicsMaterialCombineMode.Average;
+  private _destroyed: boolean;
 
   /** @internal */
   _nativeMaterial: IPhysicsMaterial;
 
   constructor() {
-    this._nativeMaterial = PhysicsManager._nativePhysics.createPhysicsMaterial(
+    this._nativeMaterial = PhysicsScene._nativePhysics.createPhysicsMaterial(
       this._staticFriction,
       this._dynamicFriction,
       this._bounciness,
@@ -26,15 +27,17 @@ export class PhysicsMaterial {
   }
 
   /**
-   * The coefficient of bounciness.
+   * The coefficient of bounciness, ranging from 0 to 1.
    */
   get bounciness(): number {
     return this._bounciness;
   }
 
   set bounciness(value: number) {
-    this._bounciness = value;
-    this._nativeMaterial.setBounciness(value);
+    if (this._bounciness !== value) {
+      this._bounciness = value;
+      this._nativeMaterial.setBounciness(value);
+    }
   }
 
   /**
@@ -45,8 +48,10 @@ export class PhysicsMaterial {
   }
 
   set dynamicFriction(value: number) {
-    this._dynamicFriction = value;
-    this._nativeMaterial.setDynamicFriction(value);
+    if (this._dynamicFriction !== value) {
+      this._dynamicFriction = value;
+      this._nativeMaterial.setDynamicFriction(value);
+    }
   }
 
   /**
@@ -57,8 +62,10 @@ export class PhysicsMaterial {
   }
 
   set staticFriction(value: number) {
-    this._staticFriction = value;
-    this._nativeMaterial.setStaticFriction(value);
+    if (this._staticFriction !== value) {
+      this._staticFriction = value;
+      this._nativeMaterial.setStaticFriction(value);
+    }
   }
 
   /**
@@ -69,8 +76,10 @@ export class PhysicsMaterial {
   }
 
   set bounceCombine(value: PhysicsMaterialCombineMode) {
-    this._bounceCombine = value;
-    this._nativeMaterial.setBounceCombine(value);
+    if (this._bounceCombine !== value) {
+      this._bounceCombine = value;
+      this._nativeMaterial.setBounceCombine(value);
+    }
   }
 
   /**
@@ -81,14 +90,17 @@ export class PhysicsMaterial {
   }
 
   set frictionCombine(value: PhysicsMaterialCombineMode) {
-    this._frictionCombine = value;
-    this._nativeMaterial.setFrictionCombine(value);
+    if (this._frictionCombine !== value) {
+      this._frictionCombine = value;
+      this._nativeMaterial.setFrictionCombine(value);
+    }
   }
 
   /**
-   * @internal
+   * Destroy the material when the material is no be used by any shape.
    */
-  _destroy() {
-    this._nativeMaterial.destroy();
+  destroy() {
+    !this._destroyed && this._nativeMaterial.destroy();
+    this._destroyed = true;
   }
 }

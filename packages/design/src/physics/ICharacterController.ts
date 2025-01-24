@@ -1,4 +1,4 @@
-import { Vector3 } from "@oasis-engine/math";
+import { Vector3 } from "@galacean/engine-math";
 import { ICollider } from "./ICollider";
 
 /**
@@ -44,7 +44,7 @@ export interface ICharacterController extends ICollider {
   setUpDirection(up: Vector3): void;
 
   /**
-   * Sets the slope limit.
+   * Sets the slope limit in degrees.
    * @param slopeLimit The slope limit for the controller.
    */
   setSlopeLimit(slopeLimit: number): void;

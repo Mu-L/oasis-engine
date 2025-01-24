@@ -6,17 +6,19 @@ import {
   resourceLoader,
   ResourceManager,
   Texture2D
-} from "@oasis-engine/core";
+} from "@galacean/engine-core";
 import { parseSingleKTX } from "./compressed-texture";
 
 @resourceLoader(AssetType.KTX, ["ktx"])
 export class KTXLoader extends Loader<Texture2D> {
   load(item: LoadItem, resourceManager: ResourceManager): AssetPromise<Texture2D> {
     return new AssetPromise((resolve, reject) => {
-      this.request<ArrayBuffer>(item.url, {
-        ...item,
-        type: "arraybuffer"
-      })
+      resourceManager
+        // @ts-ignore
+        ._request<ArrayBuffer>(item.url, {
+          ...item,
+          type: "arraybuffer"
+        })
         .then((bin) => {
           const parsedData = parseSingleKTX(bin);
           const { width, height, mipmaps, engineFormat } = parsedData;

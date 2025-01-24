@@ -1,5 +1,9 @@
-import { IHardwareRenderer } from "../../renderingHardwareInterface/IHardwareRenderer";
+import { IHardwareRenderer } from "@galacean/engine-design";
+import { RenderStateElementMap } from "../../BasicResources";
+import { ShaderData } from "../ShaderData";
+import { ShaderProperty } from "../ShaderProperty";
 import { CullMode } from "../enums/CullMode";
+import { RenderStateElementKey } from "../enums/RenderStateElementKey";
 import { RenderState } from "./RenderState";
 
 /**
@@ -21,13 +25,48 @@ export class RasterState {
   /**
    * @internal
    */
-  _apply(hardwareRenderer: IHardwareRenderer, lastRenderState: RenderState, frontFaceInvert: boolean): void {
-    this._platformApply(hardwareRenderer, lastRenderState.rasterState, frontFaceInvert);
+  _applyShaderDataValue(renderStateDataMap: Record<number, ShaderProperty>, shaderData: ShaderData): void {
+    const cullModeProperty = renderStateDataMap[RenderStateElementKey.RasterStateCullMode];
+    if (cullModeProperty !== undefined) {
+      this.cullMode = shaderData.getFloat(cullModeProperty) ?? CullMode.Back;
+    }
+
+    const depthBiasProperty = renderStateDataMap[RenderStateElementKey.RasterStateDepthBias];
+    if (depthBiasProperty !== undefined) {
+      this.depthBias = shaderData.getFloat(depthBiasProperty) ?? 0;
+    }
+
+    const slopeScaledDepthBiasProperty = renderStateDataMap[RenderStateElementKey.RasterStateSlopeScaledDepthBias];
+    if (slopeScaledDepthBiasProperty !== undefined) {
+      this.slopeScaledDepthBias = shaderData.getFloat(slopeScaledDepthBiasProperty) ?? 0;
+    }
   }
 
-  private _platformApply(rhi: IHardwareRenderer, lastState: RasterState, frontFaceInvert: boolean): void {
+  /**
+   * @internal
+   */
+  _apply(
+    hardwareRenderer: IHardwareRenderer,
+    lastRenderState: RenderState,
+    frontFaceInvert: boolean,
+    customStates?: RenderStateElementMap
+  ): void {
+    this._platformApply(hardwareRenderer, lastRenderState.rasterState, frontFaceInvert, customStates);
+  }
+
+  private _platformApply(
+    rhi: IHardwareRenderer,
+    lastState: RasterState,
+    frontFaceInvert: boolean,
+    customStates?: RenderStateElementMap
+  ): void {
     const gl = <WebGLRenderingContext>rhi.gl;
-    const { cullMode, depthBias, slopeScaledDepthBias } = this;
+    let { cullMode, depthBias, slopeScaledDepthBias } = this;
+
+    if (customStates) {
+      const cullModeState = customStates[RenderStateElementKey.RasterStateCullMode];
+      cullModeState !== undefined && (cullMode = <CullMode>cullModeState);
+    }
 
     const cullFaceEnable = cullMode !== CullMode.Off;
     if (cullFaceEnable !== lastState._cullFaceEnable) {
@@ -61,15 +100,17 @@ export class RasterState {
     }
 
     // apply polygonOffset.
-    if (depthBias !== lastState.depthBias || slopeScaledDepthBias !== lastState.slopeScaledDepthBias) {
-      if (depthBias !== 0 || slopeScaledDepthBias !== 0) {
-        gl.enable(gl.POLYGON_OFFSET_FILL);
-        gl.polygonOffset(slopeScaledDepthBias, depthBias);
-      } else {
-        gl.disable(gl.POLYGON_OFFSET_FILL);
+    if (!rhi._enableGlobalDepthBias) {
+      if (depthBias !== lastState.depthBias || slopeScaledDepthBias !== lastState.slopeScaledDepthBias) {
+        if (depthBias !== 0 || slopeScaledDepthBias !== 0) {
+          gl.enable(gl.POLYGON_OFFSET_FILL);
+          gl.polygonOffset(slopeScaledDepthBias, depthBias);
+        } else {
+          gl.disable(gl.POLYGON_OFFSET_FILL);
+        }
+        lastState.depthBias = depthBias;
+        lastState.slopeScaledDepthBias = slopeScaledDepthBias;
       }
-      lastState.depthBias = depthBias;
-      lastState.slopeScaledDepthBias = slopeScaledDepthBias;
     }
   }
 }

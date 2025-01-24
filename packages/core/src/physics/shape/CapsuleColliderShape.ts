@@ -1,7 +1,8 @@
 import { ColliderShape } from "./ColliderShape";
-import { ICapsuleColliderShape } from "@oasis-engine/design";
-import { PhysicsManager } from "../PhysicsManager";
+import { ICapsuleColliderShape } from "@galacean/engine-design";
+import { PhysicsScene } from "../PhysicsScene";
 import { ColliderShapeUpAxis } from "../enums/ColliderShapeUpAxis";
+import { ignoreClone } from "../../clone/CloneManager";
 
 /**
  * Physical collider shape for capsule.
@@ -19,8 +20,10 @@ export class CapsuleColliderShape extends ColliderShape {
   }
 
   set radius(value: number) {
-    this._radius = value;
-    (<ICapsuleColliderShape>this._nativeShape).setRadius(value);
+    if (this._radius !== value) {
+      this._radius = value;
+      (<ICapsuleColliderShape>this._nativeShape).setRadius(value);
+    }
   }
 
   /**
@@ -31,8 +34,10 @@ export class CapsuleColliderShape extends ColliderShape {
   }
 
   set height(value: number) {
-    this._height = value;
-    (<ICapsuleColliderShape>this._nativeShape).setHeight(value);
+    if (this._height !== value) {
+      this._height = value;
+      (<ICapsuleColliderShape>this._nativeShape).setHeight(value);
+    }
   }
 
   /**
@@ -43,18 +48,26 @@ export class CapsuleColliderShape extends ColliderShape {
   }
 
   set upAxis(value: ColliderShapeUpAxis) {
-    this._upAxis = value;
-    (<ICapsuleColliderShape>this._nativeShape).setUpAxis(value);
+    if (this._upAxis !== value) {
+      this._upAxis = value;
+      (<ICapsuleColliderShape>this._nativeShape).setUpAxis(value);
+    }
   }
 
   constructor() {
     super();
-    this._nativeShape = PhysicsManager._nativePhysics.createCapsuleColliderShape(
+    this._nativeShape = PhysicsScene._nativePhysics.createCapsuleColliderShape(
       this._id,
       this._radius,
       this._height,
       this._material._nativeMaterial
     );
-    (<ICapsuleColliderShape>this._nativeShape).setUpAxis(ColliderShapeUpAxis.Y);
+  }
+
+  protected override _syncNative(): void {
+    super._syncNative();
+    (<ICapsuleColliderShape>this._nativeShape).setRadius(this._radius);
+    (<ICapsuleColliderShape>this._nativeShape).setHeight(this._height);
+    (<ICapsuleColliderShape>this._nativeShape).setUpAxis(this._upAxis);
   }
 }

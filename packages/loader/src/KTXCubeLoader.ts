@@ -7,7 +7,7 @@ import {
   ResourceManager,
   TextureCubeFace,
   TextureCube
-} from "@oasis-engine/core";
+} from "@galacean/engine-core";
 import { parseCubeKTX } from "./compressed-texture";
 
 @resourceLoader(AssetType.KTXCube, [])
@@ -16,7 +16,8 @@ class KTXCubeLoader extends Loader<TextureCube> {
     return new AssetPromise((resolve, reject) => {
       Promise.all(
         item.urls.map((url) =>
-          this.request<ArrayBuffer>(url, {
+          // @ts-ignore
+          resourceManager._request<ArrayBuffer>(url, {
             ...item,
             type: "arraybuffer"
           })
